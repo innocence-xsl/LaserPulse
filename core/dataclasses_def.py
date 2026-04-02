@@ -62,10 +62,10 @@ class CrystalParameters:
     wavelength_grid: np.ndarray = field(default_factory=lambda: np.array([]))
 
     # 定义 π 偏振和 σ 偏振的吸收和发射截面
-    sigma_abs_pi_grid: np.ndarray = None   # π 偏振吸收
-    sigma_em_pi_grid: np.ndarray = None    # π 偏振发射
-    sigma_abs_sig_grid: np.ndarray = None # σ 偏振吸收
-    sigma_em_sig_grid: np.ndarray = None  # σ 偏振发射
+    sigma_abs_pi_grid: Optional[np.ndarray] = None   # π 偏振吸收
+    sigma_em_pi_grid: Optional[np.ndarray] = None    # π 偏振发射
+    sigma_abs_sig_grid: Optional[np.ndarray] = None # σ 偏振吸收
+    sigma_em_sig_grid: Optional[np.ndarray] = None  # σ 偏振发射
 
     @property
     def N_doping(self) -> float:
