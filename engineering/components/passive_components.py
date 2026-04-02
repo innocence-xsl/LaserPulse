@@ -8,7 +8,7 @@
     包括但不限于：
     1. LossyMirror：带来恒定能量损耗的反射镜
     2. SpectralFilter：高斯陷波滤波器（升级版，支持多次反射）
-    3. AdvancedMaterialDispersion：真实介质色散器（包含高阶色散）
+    3. MaterialDispersion：真实介质色散器（包含高阶色散）
     4. TreacyGratingCompressor：真实的 Treacy 光栅压缩器（自动匹配距离）
 
      每个组件都继承自 BaseComponent，核心方法是 `propagate`，
@@ -17,7 +17,7 @@
 """
 
 import numpy as np
-from components.base_component import BaseComponent
+from engineering.components.base_component import BaseComponent
 from core.pulse import Pulse
 
 class LossyMirror(BaseComponent):
@@ -75,7 +75,7 @@ class SpectralFilter(BaseComponent):
         
         return pulse
     
-class AdvancedMaterialDispersion(BaseComponent):
+class MaterialDispersion(BaseComponent):
     """
     真实介质色散器
     不仅包含群速度色散(Beta 2)，还加入了让脉冲极度扭曲的高阶色散(Beta 3)！

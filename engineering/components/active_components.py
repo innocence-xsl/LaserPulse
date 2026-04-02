@@ -12,7 +12,7 @@
 """
 
 import numpy as np
-from components.base_component import BaseComponent
+from engineering.components.base_component import BaseComponent
 from core.pulse import Pulse
 from core.dataclasses_def import CrystalParameters, PumpParameters, PhysicalConstants
 from physics.amplification.component_interface import propagate_pulse, trigger_pump
