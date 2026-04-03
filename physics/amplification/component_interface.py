@@ -16,8 +16,6 @@ from core.pulse import Pulse
 from .frantz_nodvik import amplify_single_pass
 from .pump_dynamics import pump_process
 
-
-
 def propagate_pulse(
     pulse: Pulse,
     N_upper: float,
