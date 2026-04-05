@@ -111,7 +111,7 @@ class ParameterLoader:
         if wl_raw is not None:
             wl_m = wl_raw * 1e-9
             
-            # --- 自动对齐逻辑 ---
+            #--- 对齐逻辑 待定？？？：是否需要默认对齐到目标波长？我认为应该集成到具体实验操作中，读取数据应该只负责基础数据处理 ---
             if align_to_peak:
                 current_center = np.average(wl_m, weights=int_raw)
                 shift = (target_center_nm * 1e-9) - current_center

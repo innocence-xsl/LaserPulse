@@ -49,8 +49,8 @@ class SpectralFilter(BaseComponent):
         super().__init__(name)
         self.center_wl = center_wl
         self.width = width
-        self.depth_per_bounce = depth_per_bounce  # ⚠️ 注意：这里变成了“单次反射深度”
-        self.num_bounces = num_bounces            # ⚠️ 新增：反射次数（默认为1次）
+        self.depth_per_bounce = depth_per_bounce  # 单次反射深度
+        self.num_bounces = num_bounces            # 反射次数
         self.order = 2  # 高斯阶数
 
     def propagate(self, pulse: Pulse) -> Pulse:
@@ -62,7 +62,7 @@ class SpectralFilter(BaseComponent):
         single_bounce_transmission = 1.0 - (self.depth_per_bounce * notch_shape)
         single_bounce_transmission = np.clip(single_bounce_transmission, 0.0, 1.0)
         
-        # 2. 🌟 核心物理升级：计算经过 N 次反射后的总透射率
+        # 2. 计算经过 N 次反射后的总透射率
         # 根据物理定律，连续通过 N 次，总透射率就是单次透射率的 N 次方！
         total_transmission = single_bounce_transmission ** self.num_bounces
         

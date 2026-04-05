@@ -1,6 +1,6 @@
 # === 光谱整形晶体参数配置 ===
 
-thickness = 8e-3          # 晶体长度 [m]    |  6mm
+thickness = 6e-3          # 晶体长度 [m]    |  6mm
 num_disks = 1             # 晶体数量
 doping_at_percent = 1.5   # 掺杂浓度(at.%)  |  Yb3+掺杂浓度 (2-5都可以实现)
 N_total_base = 1.25e28    # 基质离子密度基数 [ions/m^3]
