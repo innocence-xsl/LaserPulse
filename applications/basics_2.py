@@ -29,7 +29,7 @@ sigma = 0.75e-24    # 受激辐射截面 (m²)
 L = 0.01  # 晶体长度 (m)
 A = np.pi * (0.5e-3)**2  # 光束横截面积 (m²), 直径 0.5 mm 的光斑对应的面积
 n_refr = 1.93  # 晶体的折射率, eg:Yb:CALGO
-tau_f = 420e-6 # 上能级寿命 (s)
+# tau_f = 420e-6 # 上能级寿命 (s)
 tau_c = 5e-9  # 腔内光子寿命 (s),由光学谐振腔的结构决定的（与腔长和单圈损耗相关）
 
 # 激光脉冲参数
@@ -48,7 +48,7 @@ def basic_2(y, t):
     dN2_dt = - sigma * v * phi * N2
 
     # dphi_dt = sigma * v * N2 * phi - phi / tau_c  # 包含增益和损耗项
-    dphi_dt = sigma * v * N2 * phi  # 单程放大，不考虑腔内损耗的影响
+    dphi_dt = sigma * v * N2 * phi  # 不考虑腔内损耗的影响
 
     return [dN2_dt, dphi_dt]
 
