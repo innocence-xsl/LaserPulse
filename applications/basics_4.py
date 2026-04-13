@@ -11,9 +11,9 @@
 
 import sys
 import os
-# 获取当前文件（main.py）的路径
+# 获取当前文件的路径
 current_file_path = os.path.abspath(__file__)
-# 获取项目根目录（LASERPULSE_V2/）：向上退一级（因为 main.py 在 applications/ 里）
+# 获取项目根目录
 project_root = os.path.dirname(os.path.dirname(current_file_path))
 # 把项目根目录加入Python搜索路径
 sys.path.append(project_root)
@@ -29,10 +29,10 @@ c = 3e8 # 光速
 lambda_0 = 1030e-9 # 中心波长
 w_0 = 100e-6 # 光斑束腰半径
 E_pulse = 1e-9 # 单脉冲能量
-tau = 200e-15 # 脉宽
+tau = 100e-15 # 脉宽
 
 t_array = np.linspace(-5e-12, 5e-12, 16384) # 时间轴
-L_medium = 0.03 # 介质长度
+L_medium = 10 # 介质长度
 material_name = "Si3N4" # 介质名称
 
 # ==============================================================================
@@ -78,7 +78,19 @@ def propagate_in_medium(t_array, E_t_in, L_medium, material_csv_path):
 
     # 4. 在频域施加相位调制：phi(omega) = n(omega) * omega * L / c
     phi_omega = (n_omega * omega_array / c) * L_medium
-    E_omega_out = E_omega * np.exp(-1j * phi_omega)
+    # 找到中心角频率 omega_0 对应的索引
+    omega_0 = 2 * np.pi * c / 1030e-9
+    idx_0 = np.argmin(np.abs(omega_array - omega_0))
+    # 用中心频率附近的点，通过差分计算群延迟斜率 (d_phi / d_omega)
+    d_omega = omega_array[idx_0 + 1] - omega_array[idx_0 - 1]
+    d_phi = phi_omega[idx_0 + 1] - phi_omega[idx_0 - 1]
+    t_delay = d_phi / d_omega  # 脉冲在玻璃里跑的总时间
+    phi_0 = phi_omega[idx_0]   # 绝对相位
+
+    # 减去绝对相位和导致整体平移的线性相位
+    # 剩下的 phi_dispersion 就只有纯纯的色散（展宽和啁啾）了！
+    phi_dispersion = phi_omega - phi_0 - t_delay * (omega_array - omega_0)
+    E_omega_out = E_omega * np.exp(-1j * phi_dispersion)
 
     # 5. 逆傅里叶变换回到时域 (注意要先 ifftshift 移回去)
     E_t_out = np.fft.ifft(np.fft.ifftshift(E_omega_out))
@@ -179,7 +191,7 @@ if __name__ == "__main__":
     ax1.set_xlabel('时间 t (fs)')
     ax1.set_ylabel('时域光强 (W/m^2)')
     ax1.set_title('时域分布（色散导致展宽）')
-    ax1.set_xlim(-2000, 2000) # 缩放视野，看看脉冲被拉得有多长！
+    ax1.set_xlim(-500, 500) 
     ax1.legend()
     ax1.grid(True, alpha=0.5)
 
@@ -200,4 +212,5 @@ if __name__ == "__main__":
     ax3.grid(True, linestyle='--', alpha=0.7)
 
     plt.tight_layout()
+    plt.savefig('utils/record/basics_4_in_medium.png', dpi=300)
     plt.show()

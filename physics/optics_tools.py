@@ -38,7 +38,7 @@ def sellmeier_index(lambda_window: np.ndarray, coeffs_file: str) -> np.ndarray:
     for B, C in coeffs:
         n_sq += B * (lw**2) / (lw**2 - C**2)
         
-    return np.sqrt(n_sq)
+    return np.sqrt(np.clip(n_sq, 0, None))
 
 def get_taylor_coeffs_from_beta2(beta_2: np.ndarray, grid_omega: np.ndarray) -> Tuple[np.ndarray, np.ndarray]:
     """从群速度色散(beta2)曲线中提取高阶色散泰勒系数"""
