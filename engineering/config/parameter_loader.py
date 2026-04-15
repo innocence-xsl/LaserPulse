@@ -12,10 +12,16 @@
 """
 
 import os
+import sys
 import numpy as np
 import pandas as pd
 from scipy.interpolate import interp1d
 from dataclasses import fields
+
+current_dir = os.path.dirname(os.path.abspath(__file__))     # 当前目录
+project_root = os.path.dirname(os.path.dirname(current_dir)) # 回退两级到项目根目录
+if project_root not in sys.path:
+    sys.path.insert(0, project_root)
 
 from core.grid import Grid
 from core.pulse import Pulse
@@ -81,24 +87,35 @@ class ParameterLoader:
             return np.zeros_like(self.master_wl)
             
         f_interp = interp1d(wl_raw * x_scale, val_raw * y_scale, 
-                            kind='cubic', bounds_error=False, fill_value=0.0)
-        # 限制下限为0，防止由于三次样条插值产生的微小负值
+                            kind='linear', bounds_error=False, fill_value=0.0)
+        # 限制下限为0，防止由于线性插值产生的微小负值
         return np.clip(f_interp(self.master_wl), 0.0, None)
 
     # -----------------------------------------------------------------------
     # 业务接口层：干净、清爽、没有冗余的数学运算
     # -----------------------------------------------------------------------
 
-    def get_crystal_params(self) -> CrystalParameters:
-        cry = self._load_txt_params('crystal.txt', CrystalParameters)
+    def get_crystal_params(self, crystal_name: str = "calgo") -> CrystalParameters:
+        """
+        加载指定晶体的参数与截面数据。
+        :param crystal_name: 晶体名称（默认 'calgo'），用于定位对应的数据文件
+        """
+        # 动态加载 txt 参数文件
+        # 建议把 crystal.txt 改名为 crystal_calgo.txt, crystal_yag.txt 等以区分不同晶体的静态参数
+        txt_filename = f'crystal_{crystal_name}.txt'
+        # 如果希望所有晶体暂时共用同一个 crystal.txt，可以把上面那行改回: txt_filename = 'crystal.txt'
+        
+        cry = self._load_txt_params(txt_filename, CrystalParameters)
         cry.wavelength_grid = self.master_wl
         
+        # 2. 动态拼接光谱 CSV 的路径 (使用子文件夹形式: datafile/calgo/pai_abs.csv)
         # x_scale=1e-9 将波长转 m，y_scale=1e-24 将截面转 m^2
-        cry.sigma_abs_pi_grid  = self._load_and_interp('absorption_p.csv', 1e-9, 1e-24)       # π 偏振吸收截面
-        cry.sigma_em_pi_grid   = self._load_and_interp('emission_p.csv',   1e-9, 1e-24)       # π 偏振发射截面
-        cry.sigma_abs_sig_grid = self._load_and_interp('absorption_s.csv', 1e-9, 1e-24)       # σ 偏振吸收截面
-        cry.sigma_em_sig_grid  = self._load_and_interp('emission_s.csv',   1e-9, 1e-24)       # σ 偏振发射截面
+        cry.sigma_abs_pi_grid  = self._load_and_interp(f'{crystal_name}/pai_abs.csv', 1e-9, 1e-24)       # π 偏振吸收截面
+        cry.sigma_em_pi_grid   = self._load_and_interp(f'{crystal_name}/pai_emi.csv',   1e-9, 1e-24)       # π 偏振发射截面
+        cry.sigma_abs_sig_grid = self._load_and_interp(f'{crystal_name}/sigma_abs.csv', 1e-9, 1e-24)       # σ 偏振吸收截面
+        cry.sigma_em_sig_grid  = self._load_and_interp(f'{crystal_name}/sigma_emi.csv',   1e-9, 1e-24)       # σ 偏振发射截面
 
+        print(f"💎 [ParameterLoader] Successfully loaded crystal parameters for: {crystal_name.upper()}")
         return cry
     
     def get_seed_params(self, align_to_peak: bool = False, target_center_nm: float = 1040.0) -> tuple[Pulse, SeedParameters]: 
@@ -122,7 +139,7 @@ class ParameterLoader:
                 print(f"📊 [Exp] Raw Seed Center: {center_nm:.2f} nm")
 
             # 仅执行一次插值
-            f_interp = interp1d(wl_m, int_raw, kind='cubic', bounds_error=False, fill_value=0.0)
+            f_interp = interp1d(wl_m, int_raw, kind='linear', bounds_error=False, fill_value=0.0)
             intensity_on_grid = np.clip(f_interp(self.master_wl), 0.0, None)
         else:
             print("⚠️ 警告: 未找到种子光谱文件，使用初始化的空/默认分布。")

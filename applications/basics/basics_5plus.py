@@ -24,18 +24,18 @@ c = 3e8 # 光速
 h = 6.62607015e-34 # 普朗克常数
 
 #  种子光参数
-E_pulse = 10e-9 # 单脉冲能量
-tau_seed = 100e-12 # 脉宽
+E_pulse = 3e-9 # 单脉冲能量
+tau_seed = 5.2e-12 # 脉宽
 w_seed = 100e-6 # 光斑束腰半径
 lambda_seed = 1030e-9 # 中心波长
 
 # 泵浦光参数
-P_pump = 100 # 泵浦功率（W）
+P_pump = 50 # 泵浦功率（W）
 w_pump = 110e-6 # 泵浦光斑束腰半径（m）
 lambda_pump = 980e-9 # 泵浦波长（m）
 
 # 增益介质参数
-thickness = 6e-3 # 增益介质长度  [m]
+thickness = 8e-3 # 增益介质长度  [m]
 N_total_base = 1.25e28 # 基质离子密度基数  [ions/m^3]
 doping_at_percent = 1.5 # 掺杂浓度  [a.t.%]
 sigma_em_1030 = 0.72e-24 # 1030nm处的受激发射截面 (m^2)
@@ -79,8 +79,8 @@ dz = thickness / num_steps  # 空间步长
 N2_z = np.full(num_steps, N2_final)  # N2_z 数组记录晶体不同深度的上能级粒子数密度
 
 # 1. 构建时间轴 
-N_time = 2000 # 时间步数量
-t_array = np.linspace(-1000e-12, 1000e-12, N_time)
+N_time = 1000 # 时间步数量
+t_array = np.linspace(-100e-12, 100e-12, N_time)
 dt_pulse = t_array[1] - t_array[0] # 时间步长
 
 # 2. 计算初始种子光的峰值光强 (I_peak)
@@ -150,8 +150,9 @@ ax1.grid(True, linestyle='--', alpha=0.7)
 I_in_norm = I_t_in / np.max(I_t_in)
 I_out_norm = I_t_out / np.max(I_t_out)
 
-ax2.plot(t_array * 1e12, I_in_norm, 'k--', linewidth=2, label='输入种子脉冲 (10 nJ)')
+ax2.plot(t_array * 1e12, I_in_norm, 'k--', linewidth=2, label='输入种子脉冲 (3 nJ)')
 ax2.plot(t_array * 1e12, I_out_norm, 'r-', linewidth=2, label='放大后输出脉冲 (mJ级)')
+# ax2.set_xlim(-1000e-12, 1000e-12)
 ax2.set_xlabel('时间 (ps)', fontsize=12)
 ax2.set_ylabel('归一化光强 (a.u.)', fontsize=12)
 ax2.set_title('脉冲时域波形畸变对比 (归一化)', fontsize=14)
@@ -167,5 +168,5 @@ print(f"总能量放大倍数: {energy_history[-1] / E_pulse:.2e} 倍")
 print("-" * 50)
 
 plt.tight_layout()
-plt.savefig('utils/record/basics_5plus.png', dpi=300)
+# plt.savefig('utils/record/basics_5plus.png', dpi=300)
 plt.show()
