@@ -15,7 +15,6 @@ import matplotlib.pyplot as plt
 from scipy.interpolate import interp1d
 from scipy.fft import fft, ifft, fftfreq, fftshift
 
-
 c = 3e8 # 光速
 h = 6.62607015e-34 # 普朗克常数
 
@@ -242,12 +241,12 @@ ax2.grid(True, linestyle='--', alpha=0.6)
 ax2.legend()
 
 plt.tight_layout()
-# plt.savefig('utils/record/basics_6.png', dpi=300)
+plt.savefig('utils/record/basics_6.png', dpi=300)
 plt.show()
 
 
 # # ==========================================
-# # 实际调用与参数定义
+# # 检查插值函数是否工作正常
 # # ==========================================
 # # 1. 读取 π 偏振下的吸收与发射截面 (转换为 m^2)
 # wl_pi_abs, val_pi_abs, func_pi_abs = load_and_interpolate('engineering/config/datafile/Yb_CALGO/pai_abs.csv', y_multiplier=1e-24)

@@ -51,11 +51,11 @@ class Grid:
         self.df = self.f_range / self.points       # 频率步长 [Hz]
         self.dOmega = 2 * np.pi * self.df          # 角频率步长 [rad/s]
         
-        # 3. 频域网格 (相对与绝对)
+        # 3. 频域网格
         self.omega = self.dOmega * axis               # 以 0 为中心的相对角频率网格 [rad/s]
         self.omega_window = self.omega_c + self.omega # 绝对角频率网格 [rad/s]
         
-        # 【核心修正】预计算 FFT 移位后的频率网格，极大地优化后续分裂步长傅里叶法 (SSFM) 的效率
+        # 预计算 FFT 移位后的频率网格，极大地优化后续分裂步长傅里叶法 (SSFM) 的效率
         self.omega_window_shift = np.fft.fftshift(self.omega_window)
         
         self.f_window = self.omega_window / (2 * np.pi) # 绝对频率网格 [Hz]
@@ -64,10 +64,10 @@ class Grid:
         self.lambda_window = const.c / self.f_window  # 对应的波长网格 [m]
         self.lambda_min = self.lambda_window.min()
         
-        # 【核心修正】计算波长积分微元 d_wl。因为波长网格非等间距，积分或功率密度转换时必须使用此梯度！
+        # 计算波长积分微元 d_wl。因为波长网格非等间距，积分或功率密度转换时必须使用此梯度！
         self.d_wl = np.gradient(-1 * self.lambda_window)
         
-        # 5. 【核心修正】能量网格 (计算有源光纤/晶体增益时必须的基础标尺)
+        # 5.能量网格 (计算晶体增益时的基础标尺)
         self.energy_window = const.h * self.f_window
         self.energy_window_shift = np.fft.fftshift(self.energy_window)
 
