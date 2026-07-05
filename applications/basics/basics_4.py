@@ -9,13 +9,18 @@
 """
 
 import sys
-import os
-# 获取当前文件的路径
-current_file_path = os.path.abspath(__file__)
-# 获取项目根目录
-project_root = os.path.dirname(os.path.dirname(current_file_path))
-# 把项目根目录加入Python搜索路径
-sys.path.append(project_root)
+from pathlib import Path
+
+# 获取项目根目录：
+# 当前文件在 applications/basics/basics_4.py
+# parents[0] = applications/basics
+# parents[1] = applications
+# parents[2] = LaserPulse_v2 项目根目录
+project_root = Path(__file__).resolve().parents[2]
+
+# 把项目根目录加入 Python 搜索路径
+if str(project_root) not in sys.path:
+    sys.path.insert(0, str(project_root))
 
 import numpy as np
 import matplotlib.pyplot as plt
@@ -185,7 +190,7 @@ if __name__ == "__main__":
     fig, (ax1, ax2, ax3) = plt.subplots(1, 3, figsize=(12, 5))
 
     # 图 1：时域分布
-    ax1.plot(t_array * 1e15, I_t_in, 'k-', label='初始脉冲 (200fs)')
+    ax1.plot(t_array * 1e15, I_t_in, 'k-', label=f'初始脉冲 ({tau*1e15:.0f} fs)')
     ax1.plot(t_array * 1e15, I_t_out, 'r-', linewidth=2, label='出玻璃后 (啁啾脉冲)')
     ax1.set_xlabel('时间 t (fs)')
     ax1.set_ylabel('时域光强 (W/m^2)')
