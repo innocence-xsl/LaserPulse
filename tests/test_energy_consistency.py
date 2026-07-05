@@ -48,14 +48,21 @@ def test_time_frequency_round_trip_preserves_energy():
 
 
 def test_frequency_round_trip_preserves_field_shape():
-    """FFT followed by IFFT should recover the original time-domain field."""
+    """FFT followed by IFFT should recover the original time-domain field.
+
+    We compare the relative L2 error instead of using a very small absolute
+    point-by-point tolerance. FFT/IFFT round trips naturally leave tiny floating
+    point tails near zero-valued samples, especially on different Python/NumPy
+    versions.
+    """
     pulse = make_gaussian_pulse(target_energy=1e-9)
     original_field = pulse.A_t.copy()
 
     pulse.to_freq_domain()
     pulse.to_time_domain()
 
-    assert np.allclose(pulse.A_t, original_field, rtol=1e-10, atol=1e-18)
+    relative_error = np.linalg.norm(pulse.A_t - original_field) / np.linalg.norm(original_field)
+    assert relative_error < 1e-12
 
 
 def test_ftl_pulse_does_not_modify_original_pulse():
