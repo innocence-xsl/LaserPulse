@@ -1,334 +1,356 @@
-# LaserPulse
+# LaserPulse_v2
 
-LaserPulse 是一个用于模拟超短脉冲再生放大器中 **脉冲能量增长、光谱增益窄化、光谱整形以及时域/频域演化** 的 Python 仿真项目。
+LaserPulse_v2 是一个用于学习和搭建 **超短脉冲再生放大器数值仿真模型** 的 Python 项目。
 
-当前主要开发版本为 `LaserPulse_v2` 分支。该分支主要围绕 Yb:CALGO 再生放大器展开，尝试把种子光谱、增益介质、泵浦储能、腔内损耗、光谱整形和傅里叶变换极限脉宽计算放到同一个可扩展框架中。
+这个分支不是旧版 `main` 分支的简单整理版，而是当前主要开发分支。它的目标是从最基础的受激辐射、速率方程、脉冲时频域表示开始，逐步发展到 Yb:CALGO 再生放大器中的泵浦储能、增益提取、增益窄化、光谱整形、腔内往返循环和传播矩阵计算。
 
-> 当前项目仍处于早期研究原型阶段。它的主要目标不是直接给出工业级或论文级完整仿真软件，而是逐步建立一套清晰、可解释、可验证的再生放大器数值模型。
+当前项目仍处于早期研究和学习原型阶段。它更像是一个“从零搭建再生放大器仿真框架”的工作台，而不是已经完成的论文级软件。
 
 ---
 
-## 1. 项目可以做什么？
+## 1. 当前分支定位
 
-目前 LaserPulse 可以完成以下基础仿真任务：
+`LaserPulse_v2` 目前有两条并行主线：
 
-- 构建超短脉冲的时间/频率/波长网格；
-- 读取实验或自定义种子光谱；
-- 读取 Yb:CALGO 的 π / σ 偏振吸收和发射截面数据；
-- 模拟腔外光谱预整形；
-- 模拟泵浦过程中的上能级粒子数积累；
-- 使用简化 Frantz-Nodvik 思路模拟单程增益和能量提取；
-- 模拟再生放大器中多次往返后的脉冲能量增长；
-- 观察最终输出光谱和傅里叶变换极限脉宽；
-- 初步探索 CPA 中的材料色散和光栅压缩影响。
+1. **学习主线：`applications/basics`**  
+   用一组从 `basics_1.py` 到 `basics_6.py` 的脚本，逐步理解放大器仿真的基础物理过程。
+
+2. **工程主线：`core` + `physics` + `engineering`**  
+   把前面学到的物理过程逐步模块化，形成可以复用、可以测试、可以扩展的仿真框架。
+
+简单说：
+
+```text
+applications/basics  = 学习区 / 草稿区 / 物理过程拆解
+core                 = 核心数据结构
+physics              = 物理公式与模型
+engineering          = 工程化组装和参数读取
+tests                = 自动测试与安全网
+```
 
 ---
 
 ## 2. 项目结构
 
+当前 `LaserPulse_v2` 分支的大致结构如下：
+
 ```text
-LaserPulse/
+LaserPulse_v2/
+├── applications/
+│   └── basics/
+│       ├── basics_1.py        # 受激辐射放大的最小速率方程：N2 与 phi 耦合
+│       ├── basics_2.py        # 从 N2 / phi 过渡到宏观能量与增益
+│       ├── basics_2plus.py    # 改变截面、光子寿命等参数，观察增益饱和趋势
+│       ├── basics_3.py        # 构建高斯脉冲，观察时域和频域表示
+│       ├── basics_4.py        # 自由空间与透明介质传播，观察色散展宽
+│       ├── basics_5.py        # 单次经过增益介质：泵浦储能与能量提取
+│       ├── basics_5plus.py    # 多次经过增益介质：再生放大能量增长雏形
+│       ├── basics_6.py        # 频域角度模拟增益窄化和光谱演化
+│       └── basics.ipynb       # Notebook 草稿或学习记录
+│
 ├── core/
-│   ├── grid.py                 # 时间/频率/波长网格
-│   ├── pulse.py                # 脉冲对象，保存 A_t 和 A_f
-│   └── dataclasses_def.py      # 晶体、泵浦、种子、腔参数定义
+│   ├── grid.py                # 时间 / 频率 / 波长网格
+│   ├── pulse.py               # Pulse 对象，保存时域 A_t 与频域 A_f
+│   └── dataclasses_def.py     # 物理常数、晶体、泵浦、种子、腔参数定义
 │
-├── components/
-│   ├── base_component.py       # 光学元件基类
-│   ├── active_components.py    # 有源增益介质模型
-│   └── passive_components.py   # 损耗镜、滤波器、色散、压缩器等
+├── physics/
+│   ├── optics_tools.py        # 光学计算辅助函数
+│   ├── base_physical_op.py    # 基础物理操作接口或草稿
+│   ├── amplification/
+│   │   ├── component_interface.py
+│   │   ├── frantz_nodvik.py
+│   │   ├── gain.py
+│   │   ├── pump_dynamics.py
+│   │   └── rate_equations.py
+│   └── propagation/
+│       ├── ABCD_matrix.py     # ABCD 矩阵与基本光学元件
+│       ├── Resonator.py       # 线性谐振腔与本征模计算
+│       ├── beam_propagation.py
+│       └── test_1.py          # 谐振腔稳定性和本征模测试脚本
 │
-├── system/
-│   ├── parameter_loader.py     # 参数与光谱数据读取
-│   ├── optical_assembly.py     # 再生放大器循环总控
-│   ├── parameters/             # crystal / pump / seed / cavity 参数文件
-│   └── datafile/               # 吸收截面、发射截面、种子光谱等数据
+├── engineering/
+│   ├── assembly/
+│   │   └── optical_assembly.py    # 再生放大器装配体和循环控制
+│   ├── components/
+│   │   ├── base_component.py      # 光学组件基类
+│   │   ├── active_components.py   # 有源增益介质组件
+│   │   └── passive_components.py  # 损耗镜、滤波器、色散器、光栅压缩器等
+│   └── config/
+│       ├── parameter_loader.py    # 参数与光谱数据读取
+│       ├── parameters/            # crystal / pump / seed / cavity 参数文件
+│       └── datafile/
+│           ├── Yb_CALGO/          # Yb:CALGO π / σ 偏振截面数据
+│           ├── seed_spectrum.csv  # 种子光谱
+│           └── UVFS.csv           # 透明材料色散数据
 │
-├── archive/                    # 旧版本模型和物理逻辑备份
-├── record/                     # 运行记录或阶段性结果
+├── tests/
+│   └── test_energy_consistency.py # Grid / Pulse 时频转换基础测试
 │
-├── main.py                     # 当前主运行脚本
-├── play_cpa_compression.py     # CPA 色散与压缩测试脚本
-└── reproduce_fig2a.py          # 文献图示复现测试脚本
+├── .gitignore
+├── .gitattributes
+├── requirements.txt
+└── README.md
 ```
 
 ---
 
 ## 3. 快速上手
 
-### 3.1 克隆项目
+### 3.1 克隆项目并切换分支
 
 ```bash
 git clone https://github.com/innocence-xsl/LaserPulse.git
 cd LaserPulse
-```
-
-### 3.2 切换到当前开发分支
-
-```bash
 git checkout LaserPulse_v2
 ```
 
-如果本地还没有该分支，可以使用：
+如果本地还没有该分支：
 
 ```bash
 git fetch origin
 git checkout -b LaserPulse_v2 origin/LaserPulse_v2
 ```
 
-### 3.3 创建 Python 环境
+### 3.2 创建独立 Python 环境
 
-推荐使用 Python 3.10 或更高版本。
-
-```bash
-conda create -n laserpulse python=3.10
-conda activate laserpulse
-```
-
-或者使用普通虚拟环境：
+当前分支已在 Python 3.13 环境下通过基础测试。推荐使用独立 conda 环境，避免污染 `base`。
 
 ```bash
-python -m venv .venv
-```
-
-Windows：
-
-```bash
-.venv\Scripts\activate
-```
-
-macOS / Linux：
-
-```bash
-source .venv/bin/activate
-```
-
-### 3.4 安装依赖
-
-当前项目主要依赖：
-
-```bash
-pip install numpy scipy pandas matplotlib
-```
-
-后续建议增加 `requirements.txt`，这样可以直接使用：
-
-```bash
+conda create -n laserpulse313 python=3.13
+conda activate laserpulse313
 pip install -r requirements.txt
 ```
 
-### 3.5 运行主程序
+### 3.3 运行测试
 
 ```bash
-python main.py
+pytest
 ```
 
-主程序会依次完成：
-
-1. 读取晶体、泵浦、种子光和腔参数；
-2. 加载种子光谱和 Yb:CALGO 截面数据；
-3. 对种子光进行腔外光谱预整形；
-4. 对晶体进行泵浦储能；
-5. 模拟脉冲在再生放大器中多圈往返；
-6. 输出脉冲能量增长、最终光谱和傅里叶变换极限脉宽。
+当前基础测试目标是确认 `Grid` / `Pulse` 的时频转换、能量保持和 FTL 脉冲生成没有被后续重构破坏。
 
 ---
 
-## 4. 仿真主线
+## 4. 从哪里开始看？
 
-当前主模型可以理解为下面这条流程：
+如果你是第一次看这个项目，建议不要直接读 `engineering` 或 `physics/amplification` 里的复杂模块，而是按下面顺序从 `applications/basics` 入手。
 
-```text
-参数读取
-   ↓
-建立 Grid 和 Pulse
-   ↓
-加载种子光谱与晶体光谱截面
-   ↓
-腔外光谱预整形
-   ↓
-泵浦过程：积累上能级粒子数 N_upper
-   ↓
-再生放大循环：
-   晶体放大 → 腔内损耗 → 下一圈
-   ↓
-记录每圈能量变化
-   ↓
-输出最终光谱和 FTL 脉宽
+### Step 1：受激辐射和速率方程
+
+```bash
+python applications/basics/basics_1.py
 ```
 
-其中，最核心的对象是：
+`basics_1.py` 用两个变量建立最基础的受激辐射放大模型：
 
-- `Grid`：定义时间、频率、波长坐标；
-- `Pulse`：保存脉冲的时域复振幅 `A_t` 和频域复振幅 `A_f`；
-- `AdvancedBulkCrystal`：描述 Yb:CALGO 晶体的泵浦储能和脉冲放大；
-- `LossyMirror`：描述腔内被动损耗；
-- `SpectralFilter`：描述光谱整形器；
-- `RegenerativeAmplifierAssembly`：控制脉冲在腔内多次往返。
+- `N2`：上能级粒子数密度；
+- `phi`：光子数密度。
 
----
+它暂时忽略自发辐射，只观察受激辐射中 `N2` 消耗和光子数增长的耦合过程。
 
-## 5. 参数文件说明
+### Step 2：从微观量走向宏观能量和增益
 
-主要参数文件位于：
-
-```text
-system/parameters/
-├── crystal.txt
-├── pump.txt
-├── seed.txt
-└── cavity.txt
+```bash
+python applications/basics/basics_2.py
 ```
 
-大致含义如下：
+`basics_2.py` 开始把微观光子数密度和上能级粒子数密度转化为：
 
-| 文件 | 作用 |
-|---|---|
-| `crystal.txt` | 晶体长度、掺杂浓度、寿命、热参数、折射率等 |
-| `pump.txt` | 泵浦功率、泵浦波长、泵浦光斑、泵浦通数等 |
-| `seed.txt` | 种子光中心波长、能量、带宽、重复频率、往返次数、预整形参数等 |
-| `cavity.txt` | 腔长、损耗、腔内整形参数、模场半径、镜片曲率等 |
+- 单脉冲能量；
+- 单程增益；
+- 储能量与输出能量之间的关系。
 
-光谱数据位于：
+### Step 3：参数扫描
 
-```text
-system/datafile/
+```bash
+python applications/basics/basics_2plus.py
 ```
 
-包括 π / σ 偏振的吸收截面、发射截面以及种子光谱数据。
+`basics_2plus.py` 用来改变受激辐射截面、腔内光子寿命等参数，观察它们对增益饱和趋势的影响。
 
----
+### Step 4：高斯脉冲的时域和频域
 
-## 6. 当前模型的简化假设
-
-当前版本为了便于理解和调试，采用了一些简化处理：
-
-1. 增益介质中的反转粒子数暂时采用空间平均模型；
-2. 泵浦吸收采用简化 Beer-Lambert 模型；
-3. 单程放大使用简化的 Frantz-Nodvik 标量能量提取思想；
-4. 光谱重构通过平均反转粒子数计算增益谱；
-5. 暂未完整考虑 ASE、横向空间分布、热透镜、波前畸变、Pockels cell 动态开关等因素；
-6. CPA 色散与光栅压缩部分目前属于探索性脚本，尚未完全并入主模型。
-
-这些假设并不代表最终模型，而是为了先建立一个能跑通、能解释、能逐步验证的基础框架。
-
----
-
-## 7. 后续改进方向
-
-LaserPulse 后续可以逐步发展为更完整的再生放大器仿真模型。建议按照以下顺序推进：
-
-### 第一阶段：让基础框架稳定
-
-目标：确保项目可以被稳定运行和复现。
-
-建议工作：
-
-- 增加 `requirements.txt`；
-- 增加 `.gitignore`；
-- 统一参数文件字段名和 dataclass 字段名；
-- 将绘图代码从 `main.py` 中拆分出来；
-- 增加最基本的能量守恒测试；
-- 明确每个参数的单位。
-
-### 第二阶段：验证时域/频域能量定义
-
-目标：确认 `A_t`、`A_f`、FFT/IFFT 和能量积分的量纲一致。
-
-建议工作：
-
-- 检查 `Pulse.get_energy()` 与频域积分能量是否一致；
-- 测试光谱滤波前后能量变化是否符合预期；
-- 测试损耗镜对能量的影响是否等于设定反射率；
-- 增加简单单元测试，避免后续改动破坏基础物理量。
-
-### 第三阶段：梳理增益模型
-
-目标：把泵浦储能、Frantz-Nodvik 放大和粒子数消耗拆得更清楚。
-
-建议工作：
-
-- 将泵浦模型和放大模型从 `AdvancedBulkCrystal` 中逐步拆分；
-- 分清泵浦偏振和信号光偏振；
-- 分清小信号增益、饱和增益和光谱重构；
-- 增加每圈的 `N_upper`、小信号增益和输出能量记录；
-- 与文献中的能量增长曲线进行对标。
-
-### 第四阶段：加入真实再生放大器过程
-
-目标：从“循环放大模型”走向“再生腔模型”。
-
-建议工作：
-
-- 加入注入和提取逻辑；
-- 加入 Pockels cell / TFP / 波片等器件的等效损耗；
-- 区分单程、往返、通过晶体次数；
-- 增加输出耦合效率；
-- 支持不同腔型，例如线性腔、环形腔、薄片多通结构。
-
-### 第五阶段：加入高级物理效应
-
-目标：让模型更接近论文级仿真。
-
-建议工作：
-
-- 加入 ASE 损耗和寄生振荡判断；
-- 加入 B 积分和非线性相移；
-- 加入材料色散和啁啾脉冲传播；
-- 加入热负载、热透镜和模式变化；
-- 加入空间维度，例如横向泵浦分布和信号光分布；
-- 对接实验数据，形成参数扫描和优化模块。
-
----
-
-## 8. 适合初学者的开发原则
-
-为了避免项目越来越乱，建议每次只做一个小改动：
-
-```text
-先确认能跑
-再确认物理量正确
-再增加一个新功能
-再画图检查结果
-最后再整理代码
+```bash
+python applications/basics/basics_3.py
 ```
 
-不要一次同时修改参数读取、增益模型、画图和主程序。否则结果变了以后，很难判断到底是哪一步造成的。
+`basics_3.py` 构建 1030 nm、200 fs 的高斯脉冲，并通过 FFT 观察：
 
-推荐遵循：
+- 时域光强；
+- 真实电场；
+- 频域光谱；
+- 脉宽和光谱带宽之间的关系。
 
-1. 每次只改一个文件或一个功能；
-2. 每次修改后都运行 `python main.py`；
-3. 每次新增物理模型前，先写清楚输入、输出和单位；
-4. 每次画图前，先检查数值量级是否合理；
-5. 能用简单模型验证的，不要一上来写复杂模型。
+### Step 5：自由空间和介质传播
+
+```bash
+python applications/basics/basics_4.py
+```
+
+`basics_4.py` 用自由空间传播和透明介质传播作为例子，观察光束半径、光强分布、频谱和时域波形的变化，重点理解线性色散导致的展宽。
+
+### Step 6：单次经过增益介质
+
+```bash
+python applications/basics/basics_5.py
+```
+
+`basics_5.py` 把过程分成两段：
+
+1. 泵浦充能，建立反转粒子数；
+2. 种子脉冲单次经过增益介质，提取能量。
+
+这是从“纯速率方程”走向“放大器模型”的第一步。
+
+### Step 7：多程 / 再生放大雏形
+
+```bash
+python applications/basics/basics_5plus.py
+```
+
+`basics_5plus.py` 引入多次往返，让种子光反复经过增益介质，并记录能量随圈数增长的过程。
+
+### Step 8：频域增益窄化
+
+```bash
+python applications/basics/basics_6.py
+```
+
+`basics_6.py` 从频域出发，用 Yb:CALGO 的 σ 偏振吸收 / 发射截面和种子光谱，观察多圈放大后的光谱演化和增益窄化趋势。
 
 ---
 
-## 9. 分支说明
+## 5. 核心模块说明
 
-当前建议的开发方式：
+### 5.1 `core`
+
+`core` 是项目的地基。
+
+- `grid.py`：定义统一的时间、频率、角频率、波长网格；
+- `pulse.py`：定义 `Pulse` 对象，同时保存 `A_t` 和 `A_f`；
+- `dataclasses_def.py`：用 dataclass 管理物理常数、晶体、泵浦、种子和腔参数。
+
+后续所有复杂模型都应该尽量基于 `Grid` 和 `Pulse` 构建，而不是在每个脚本里重复造轮子。
+
+### 5.2 `physics`
+
+`physics` 存放相对独立的物理公式和模型。
+
+目前包括两大块：
+
+1. `physics/amplification`：放大相关模型，例如速率方程、泵浦动力学、Frantz-Nodvik、增益计算等；
+2. `physics/propagation`：传播相关模型，例如 ABCD 矩阵、谐振腔稳定性、本征模和光束传播。
+
+### 5.3 `engineering`
+
+`engineering` 是把物理模块组装成“器件”和“系统”的地方。
+
+- `engineering/components`：把增益晶体、损耗镜、滤波器、色散器等封装成具有 `propagate(pulse)` 接口的组件；
+- `engineering/assembly`：定义再生放大器装配体，控制脉冲在腔内多圈循环；
+- `engineering/config`：读取参数文件和光谱数据，并插值到统一网格。
+
+当前这一层还在发展中，后续会逐步成为正式仿真主线。
+
+---
+
+## 6. 数据文件说明
+
+当前新版 Yb:CALGO 数据位于：
 
 ```text
-main            = 稳定入口 / 旧版本归档 / 最终整合分支
+engineering/config/datafile/Yb_CALGO/
+├── pai_abs.csv
+├── pai_emi.csv
+├── sigma_abs.csv
+└── sigma_emi.csv
+```
+
+其中：
+
+- `pai_abs.csv`：π 偏振吸收截面；
+- `pai_emi.csv`：π 偏振发射截面；
+- `sigma_abs.csv`：σ 偏振吸收截面；
+- `sigma_emi.csv`：σ 偏振发射截面。
+
+另外：
+
+- `seed_spectrum.csv`：实验或自定义种子光谱；
+- `UVFS.csv`：透明材料色散数据。
+
+注意：当前部分脚本直接读取 `Yb_CALGO` 文件夹，而 `ParameterLoader` 中仍有一些命名和路径逻辑需要后续统一。这是 v2 后续整理的重要任务之一。
+
+---
+
+## 7. 当前测试
+
+目前测试文件包括：
+
+```text
+tests/test_energy_consistency.py
+physics/propagation/test_1.py
+```
+
+测试目标包括：
+
+- `Pulse` 在 `A_t -> A_f -> A_t` 转换后能量保持；
+- FTL 脉冲生成不破坏原始脉冲；
+- ABCD 矩阵和谐振腔本征模计算的基础逻辑可以运行。
+
+运行方式：
+
+```bash
+pytest
+```
+
+---
+
+## 8. 当前已知问题与后续整理方向
+
+这个分支目前仍是学习型和工程化过渡型代码，存在一些需要逐步整理的地方：
+
+1. `applications/basics` 中部分脚本仍有大量硬编码参数；
+2. 部分脚本会把结果保存到 `utils/record`，后续建议统一改到 `outputs/figures`；
+3. `Yb_CALGO` 数据目录和 `ParameterLoader` 的晶体名称参数需要统一；
+4. `basics` 脚本还没有统一的函数封装和命令行入口；
+5. `physics/amplification` 与 `engineering/components` 的接口需要继续梳理；
+6. 目前模型主要是空间平均和简化增益模型，还没有完整加入 ASE、热透镜、B 积分、Pockels cell 动态开关等高级效应。
+
+建议后续按以下顺序推进：
+
+```text
+第一阶段：整理 applications/basics，让每个学习脚本用途清楚、能独立运行
+第二阶段：统一数据路径和参数文件命名
+第三阶段：把 basics 中成熟的物理过程迁移到 physics 模块
+第四阶段：把 physics 模块封装成 engineering/components
+第五阶段：形成正式的再生放大器仿真入口脚本
+第六阶段：增加 ASE、热效应、B 积分和 CPA 压缩等高级模型
+```
+
+---
+
+## 9. Git 分支说明
+
+当前建议：
+
+```text
+main            = 旧版本归档 / 稳定入口 / 最终整合分支
 LaserPulse_v2   = 当前重点开发分支
 ```
 
-建议先在 `LaserPulse_v2` 中完善模型、测试和文档。等 v2 的结构稳定后，再将其整理合并回 `main`。
+现在请优先在 `LaserPulse_v2` 中开发、测试和整理。等 v2 的结构稳定后，再考虑合并或重建 `main`。
 
 ---
 
-## 10. 项目定位
+## 10. 给自己的开发原则
 
-这个项目目前最适合作为：
+为了避免项目再次变乱，建议遵循：
 
-- Yb:CALGO 再生放大器物理过程的学习工具；
-- 超短脉冲放大中光谱增益窄化与光谱整形的演示模型；
-- 后续建立更完整再生放大器仿真平台的原型代码；
-- 研究生阶段理解 CPA、增益饱和、频域/时域脉冲演化的个人科研代码库。
+```text
+一次只改一个小目标
+先跑 pytest
+再跑相关 basics 脚本
+确认 git status 干净
+再 commit 和 push
+```
 
----
-
-## 11. License
-
-当前仓库尚未设置开源协议。若后续希望他人引用、复现或二次开发，建议添加合适的 License，例如 MIT License。
+不要一次同时改参数、物理模型、画图和目录结构。科研代码最重要的是：每一步都能解释，每一次结果变化都能追踪。
