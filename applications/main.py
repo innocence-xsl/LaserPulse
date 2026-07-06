@@ -24,7 +24,7 @@ sys.path.append(project_root)
 # ==========================================
 import numpy as np
 import matplotlib.pyplot as plt
-from engineering.config.parameter_loader import ParameterLoader
+from config.parameter_loader import ParameterLoader
 from core.dataclasses_def import PhysicalConstants
 from engineering.components.active_components import BulkCrystal
 from engineering.components.passive_components import LossyMirror, SpectralFilter

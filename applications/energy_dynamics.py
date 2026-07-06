@@ -21,7 +21,7 @@ sys.path.append(project_root)
 
 # 导入底层物理算子
 from physics.amplification.rate_equations import analytical_rate_step, rate_ode_system
-from engineering.config.parameter_loader import ParameterLoader
+from config.parameter_loader import ParameterLoader
 from core.dataclasses_def import PhysicalConstants
 
 def main():
