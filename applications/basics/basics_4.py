@@ -175,7 +175,7 @@ if __name__ == "__main__":
     I_t_in = np.abs(E_t_in)**2
 
     # --- 阶段 2：色散介质传输 ---
-    material_file = "./engineering/config/datafile/UVFS.csv" 
+    material_file = str(project_root / "data" / "UVFS.csv")
     print(f"光束进入长度为 {L_medium} 米的 UVFS 玻璃...")
     E_t_out, I_t_out = propagate_in_medium(t_array, E_t_in, L_medium, material_file)
 
