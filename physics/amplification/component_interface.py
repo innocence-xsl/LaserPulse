@@ -3,18 +3,19 @@
 文件名称: component_interface.py
 所属部门: physics/amplification (物理部/放大模型)
 主要功能: 组件接口
-代码解读: 
-    定义组件接口，用于与外部组件交互,如放大器和泵浦过程,
-    主要包含：
-    1. propagate_pulse_broadband: 流水线Pulse传播接口，将Pulse转换为光谱通量→放大→还原Pulse
-    2. trigger_pump: 流水线统一泵浦接口，触发泵浦过程并更新粒子数
-
+代码解读:
+    定义 physics 层与 engineering 组件层之间的接口。
+    这里负责把 Pulse / 参数对象拆包，送入底层物理算子，
+    再把计算结果重新打包回 Pulse 或晶体状态。
 ==============================================================================
 """
+
 import numpy as np
+
 from core.pulse import Pulse
-# from .frantz_nodvik import amplify_single_pass
 from physics.amplification.gain import amplify_spectral_broadband
+from physics.amplification.pump_dynamics import pump_process
+
 
 def propagate_pulse_broadband(
     pulse: Pulse,
@@ -24,29 +25,18 @@ def propagate_pulse_broadband(
     sigma_abs_grid: np.ndarray,
     thickness: float,
     mode_area: float,
-    num_slices: float = 1.0) -> tuple[Pulse, float, float]:
+    num_slices: float = 1.0,
+) -> tuple[Pulse, float, float]:
     """
-    流水线 Pulse 传播接口 (宽带适配版)
-    参数：
-    pulse: 输入的 Pulse 对象，包含时域和频域状态
-    N_upper_start: 初始上能级粒子数密度 [m^-3]
-    N_total: 总粒子数密度 [m^-3]
-    sigma_em_grid: 发射截面网格 (对应偏振)
-    sigma_abs_grid: 吸收截面网格 (对应偏振)
-    thickness: 晶体厚度 [m]
-    mode_area: 模场面积 [m^2]
-    num_slices: 切片数量
+    流水线 Pulse 传播接口（宽带适配版）。
+
+    输入 Pulse 对象和晶体状态，调用底层宽带增益算子，
+    然后更新 Pulse 的频域/时域状态，并返回新的 N_upper。
     """
-    
-    # 1. 拆包 (Unpacking)：从 Pulse 身上卸下所需数据
-    # 提取光谱强度 (电场复振幅的模平方)
-    spectrum_in = np.abs(pulse.A_f)**2
-    # 提取相位 (为了算完增益后还能复原)
+    spectrum_in = np.abs(pulse.A_f) ** 2
     phase_in = np.angle(pulse.A_f)
-    # 提取物理波长网格
     lambda_grid = pulse.grid.lambda_window
-    
-    # 2. 加工 (Execution)：将纯数组送入底层物理机床
+
     spectrum_out, N_upper_end, current_gain = amplify_spectral_broadband(
         spectrum_in_intensity=spectrum_in,
         lambda_grid=lambda_grid,
@@ -56,49 +46,76 @@ def propagate_pulse_broadband(
         sigma_abs_grid=sigma_abs_grid,
         thickness=thickness,
         mode_area=mode_area,
-        num_slices=num_slices
+        num_slices=num_slices,
     )
-    
-    # 3. 重新打包 (Repacking)：更新 Pulse 状态
-    pulse.A_f = np.sqrt(spectrum_out) * np.exp(1j * phase_in)
-    
-    # 同步更新时域状态 (调用 Pulse 自身的方法)
+
+    pulse.A_f = np.sqrt(np.clip(spectrum_out, 0.0, None)) * np.exp(1j * phase_in)
     pulse.to_time_domain()
-    
-    # 最终返回打包好的 Pulse 产品，以及需要传递的物理状态
+
     return pulse, N_upper_end, current_gain
 
-# # def trigger_pump(
-#     dt: float,
-#     N_upper_start: float,
-#     cry_params,
-#     pump_params,
-#     consts,
-#     pump_polarization: str,
-#     pump_area: float,
-#     L_total: float) -> float:
-#     """
-#     参数:
-#         dt: 泵浦持续时间 [s]
-#         N_upper_start: 初始上能级粒子数密度 [m^-3]
-#         cry_params: 晶体参数对象
-#         pump_params: 泵浦参数对象
-#         consts: 物理常数对象
-#         pump_polarization: 泵浦偏振方向
-#         pump_area: 泵浦光斑面积 [m²]
-#         L_total: 晶体总长度 [m]
-    
-#     返回:
-#         N_upper_new: 泵浦后上能级粒子数密度 [m^-3]
-#     """
-#     return pump_process(
-#         time_duration=dt,
-#         N_upper_start=N_upper_start,
-#         cry_params=cry_params,
-#         pump_params=pump_params,
-#         consts=consts,
-#         pump_polarization=pump_polarization,
-#         pump_area=pump_area,
-#         L_total=L_total
-#     )
 
+def propagate_pulse(
+    pulse: Pulse,
+    N_upper: float,
+    cry_params,
+    seed_params,
+    consts=None,
+    sigma_em=None,
+    sigma_abs=None,
+) -> tuple[Pulse, float]:
+    """
+    Engineering 组件使用的简洁传播接口。
+
+    BulkCrystal 不需要知道底层采用的是 broadband 模型、F-N 模型还是其他模型。
+    现阶段默认调用宽带频域增益模型。
+    """
+    if sigma_em is None or sigma_abs is None:
+        raise ValueError("propagate_pulse 需要传入 sigma_em 和 sigma_abs 截面数组")
+
+    thickness = cry_params.thickness * getattr(cry_params, "num_disks", 1)
+    mode_area = getattr(seed_params, "seed_area", None)
+    if mode_area is None or mode_area <= 0:
+        mode_area = np.pi * getattr(seed_params, "w_s", 1.0) ** 2
+
+    num_slices = int(getattr(cry_params, "num_slices", 1))
+
+    pulse, N_upper_end, _gain = propagate_pulse_broadband(
+        pulse=pulse,
+        N_upper_start=N_upper,
+        N_total=cry_params.N_doping,
+        sigma_em_grid=sigma_em,
+        sigma_abs_grid=sigma_abs,
+        thickness=thickness,
+        mode_area=mode_area,
+        num_slices=max(num_slices, 1),
+    )
+
+    return pulse, N_upper_end
+
+
+def trigger_pump(
+    dt: float,
+    N_upper_start: float,
+    cry_params,
+    pump_params,
+    consts,
+    pump_polarization: str,
+    pump_area: float,
+    L_total: float,
+) -> float:
+    """
+    Engineering 组件使用的泵浦接口。
+
+    输入当前 N_upper 和泵浦参数，返回泵浦 dt 后的新 N_upper。
+    """
+    return pump_process(
+        time_duration=dt,
+        N_upper_start=N_upper_start,
+        cry_params=cry_params,
+        pump_params=pump_params,
+        consts=consts,
+        pump_polarization=pump_polarization,
+        pump_area=pump_area,
+        L_total=L_total,
+    )
